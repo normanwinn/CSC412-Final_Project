@@ -80,6 +80,8 @@ void myTimerFunc(int val);
 void createDoorColors(void);
 void freeDoorColors(void);
 
+void cleanupAndQuit();
+
 #if 0
 //=================================================================
 #pragma mark -
@@ -585,7 +587,7 @@ void myKeyboard(unsigned char c, int x, int y)
 	{
 		//	'esc' to quit
 		case 27:
-			exit(0);
+			cleanupAndQuit();
 			break;
 
 		//	slowdown

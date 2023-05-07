@@ -109,10 +109,10 @@ SquareType** grid;
 //			x and y pixel coordinates for OpenGL for rendering
 //		   So,... In all of these arrays of 2 int values, the first value (index 0)
 //			is a row coordinate and the second value (index 1) is a column coordinate.
-int doorAssign[] = {1, 0, 0, 2, 1, 3};	//	door id assigned to each robot-box pair
-int robotLoc[][2] = {{12, 8}, {6, 9}, {3, 14}, {11, 15}, {14, 1}, {8, 13}};
-int boxLoc[][2] = {{6, 7}, {4, 12}, {13, 13}, {8, 12}, {7, 14}, {11, 9}};
-int doorLoc[][2] = {{3, 3}, {8, 11}, {7, 10}, {12, 6}};
+// int doorAssign[] = {1, 0, 0, 2, 1, 3};	//	door id assigned to each robot-box pair
+// int robotLoc[][2] = {{12, 8}, {6, 9}, {3, 14}, {11, 15}, {14, 1}, {8, 13}};
+// int boxLoc[][2] = {{6, 7}, {4, 12}, {13, 13}, {8, 12}, {7, 14}, {11, 9}};
+// int doorLoc[][2] = {{3, 3}, {8, 11}, {7, 10}, {12, 6}};
 
 //	The above hard-coded intialization should be replaced by random generation in
 //	initializeApplication().
@@ -122,10 +122,17 @@ int doorLoc[][2] = {{3, 3}, {8, 11}, {7, 10}, {12, 6}};
 //int** doorAssign;
 //int** doorLoc;
 //	Or with a bit of retooling
-//vector<int> doorAssign;
-//vector<GridPosition> robotLoc;
-//vector<GridPosition> boxLoc;
-//vector<GridPosition> doorLoc;
+std::vector<int> doorAssign;
+std::vector<GridPosition> robotLoc;
+std::vector<GridPosition> boxLoc;
+std::vector<GridPosition> doorLoc;
+
+static std::uniform_int_distribution<int> randEdgeRow(0, numRows - 1);
+static std::uniform_int_distribution<int> randEdgeCol(0, numCols - 1);
+static std::uniform_int_distribution<int> randRow(1, numRows - 2);
+static std::uniform_int_distribution<int> randCol(1, numCols - 2);
+static std::uniform_int_distribution<int> randDoor(0, numDoors - 1);
+
 
 //	For extra credit section
 random_device randDev;
@@ -185,6 +192,7 @@ int main(int argc, char** argv)
 	return 0;
 }
 
+// CHANGE THIS SO THREADS ARE ENDED SUCCESSFULLY
 void cleanupAndQuit()
 {
 //	//	Free allocated resource before leaving (not absolutely needed, but
@@ -200,6 +208,7 @@ void cleanupAndQuit()
 	exit(0);
 }
 
+// CHANGE THIS SO THREADS SPAWN HERE
 void initializeApplication(void)
 {
 	//	Allocate the grid
@@ -210,17 +219,30 @@ void initializeApplication(void)
 	message = new char*[MAX_NUM_MESSAGES];
 	for (int k=0; k<MAX_NUM_MESSAGES; k++)
 		message[k] = new char[MAX_LENGTH_MESSAGE+1];
-		
+	
+
+	std::vector<GridPosition> usedCoords;
+	for (int i = 0; i < numBoxes; i++) {
+		bool isDupeCoords = true;
+		int thisRow;
+		int thisCol;
+		while (isDupeCoords) {
+			thisRow = randEdgeRow();
+			thisCol = randEdgeCol();
+			for (int j = 0; j < usedCoords.size(); j++) {
+				if ((thisRow == usedCoords[j][0]) && (thisCol == usedCoords[j][1])) 
+				}
+			}
+		}
+	}
 	//---------------------------------------------------------------
 	//	This is the place where you should initialize the location
 	//	of the doors, boxes, and robots, and create threads (not
 	//	necessarily in that order).
 	//---------------------------------------------------------------
-	//	For extra credit
-	//generatePartitions();
-	
 }
 
+// CHANGE THIS FOR THREAD STUFF
 //multithreaded robots
 void* robotFunc(void*)
 {
@@ -240,13 +262,6 @@ void* robotFunc(void*)
 	
 	return nullptr;
 }
-
-#if 0
-//=================================================================
-#pragma mark -
-#pragma mark You probably don't need to look/edit below
-//=================================================================
-#endif
 
 
 //	Rather that writing a function that prints out only to the terminal
