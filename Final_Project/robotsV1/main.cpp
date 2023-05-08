@@ -28,6 +28,10 @@
 #include <map>
 #include <cstdio>
 #include <cstdlib>
+#include <mutex>
+#include <fstream>
+#include <thread>
+#include <chrono>
 //
 //
 #include "glPlatform.h"
@@ -50,6 +54,7 @@ string printGrid(void);
 void initializeApplication(void);
 void cleanupAndQuit();
 void generatePartitions();
+void* robotFunc(int thisIndex);
 
 #if 0
 //=================================================================
@@ -85,6 +90,8 @@ char** message;
 //	Only absolutely needed if you tackle the partition EC
 SquareType** grid;
 
+//
+ofstream outFile("robotSimulOut.txt");
 
 //-----------------------------
 //	CHANGE THIS
@@ -127,12 +134,7 @@ std::vector<GridPosition> robotLoc;
 std::vector<GridPosition> boxLoc;
 std::vector<GridPosition> doorLoc;
 
-static std::uniform_int_distribution<int> randEdgeRow(0, numRows - 1);
-static std::uniform_int_distribution<int> randEdgeCol(0, numCols - 1);
-static std::uniform_int_distribution<int> randRow(1, numRows - 2);
-static std::uniform_int_distribution<int> randCol(1, numCols - 2);
-static std::uniform_int_distribution<int> randDoor(0, numDoors - 1);
-
+std::vector<std::thread> robotThreadVec;
 
 //	For extra credit section
 random_device randDev;
@@ -164,8 +166,10 @@ int main(int argc, char** argv)
 	//	I hard code-some values
 	numRows = 16;
 	numCols = 20;
-	numDoors = sizeof(doorLoc)/sizeof(doorLoc[0]);
-	numBoxes = sizeof(boxLoc)/sizeof(boxLoc[0]);
+	numDoors = 3;
+	numBoxes = 3;
+
+	outFile << numRows << " " << numCols << " " << numDoors << " " << numBoxes << "\n\n";
 
 	//	Even though we extracted the relevant information from the argument
 	//	list, I still need to pass argc and argv to the front-end init
@@ -183,6 +187,7 @@ int main(int argc, char** argv)
 	//	"lose control" over its execution.  The callback functions that 
 	//	we set up earlier will be called when the corresponding event
 	//	occurs
+
 	glutMainLoop();
 	
 	cleanupAndQuit();
@@ -208,7 +213,74 @@ void cleanupAndQuit()
 	exit(0);
 }
 
-// CHANGE THIS SO THREADS SPAWN HERE
+// --------------------------------------------------------------------------------------------------------------
+
+// This function generates a random row and random column including the edges of the grid
+void getNewRowColEdge(unsigned int &row, unsigned int &col, std::vector<GridPosition>* usedCoords) {
+	static std::uniform_int_distribution<unsigned int> randEdgeRow(0, numRows - 1);
+	static std::uniform_int_distribution<unsigned int> randEdgeCol(0, numCols - 1);
+
+	bool isDupeCoords = true;
+	while (isDupeCoords) {
+		isDupeCoords = false;
+		row = randEdgeRow(engine);
+		col = randEdgeCol(engine);
+		for (long unsigned int j = 0; j < usedCoords->size(); j++) {
+			if ((row == (*usedCoords)[j].row) && (col == (*usedCoords)[j].col)) {
+				isDupeCoords = true;
+				break;
+			}
+		}
+	}
+	return;
+}
+
+// This function generates a random row and random column excluding the edges of the grid
+void getNewRowColnonEdge(unsigned int &row, unsigned int &col, std::vector<GridPosition>* usedCoords) {
+	static std::uniform_int_distribution<unsigned int> randRow(1, numRows - 2);
+	static std::uniform_int_distribution<unsigned int> randCol(1, numCols - 2);
+
+	bool isDupeCoords = true;
+	while (isDupeCoords) {
+		isDupeCoords = false;
+		row = randRow(engine);
+		col = randCol(engine);
+		for (long unsigned int j = 0; j < usedCoords->size(); j++) {
+			if ((row == (*usedCoords)[j].row) && (col == (*usedCoords)[j].col)) {
+				isDupeCoords = true;
+				break;
+			}
+		}
+	}
+	return;
+}
+
+void writeStartingPositions() {
+	for (int i = 0; i < numDoors; i++) {
+		if (i == numDoors - 1) {
+			outFile << "(" << doorLoc[i].row << ", " << doorLoc[i].col << ")\n\n";
+			break;
+		}
+		outFile << "(" << doorLoc[i].row << ", " << doorLoc[i].col << ") ";
+	}
+
+	for (int i = 0; i < numBoxes; i++) {
+		if (i == numBoxes - 1) {
+			outFile << "(" << boxLoc[i].row << ", " << boxLoc[i].col << ")\n\n";
+			break;
+		}
+		outFile << "(" << boxLoc[i].row << ", " << boxLoc[i].col << ") ";
+	}
+
+	for (int i = 0; i < numBoxes; i++) {
+		if (i == numBoxes - 1) {
+			outFile << "(" << robotLoc[i].row << ", " << robotLoc[i].col << ") Door: " << doorAssign[i] << "\n\n";
+			break;
+		}
+		outFile << "(" << robotLoc[i].row << ", " << robotLoc[i].col << ") Door: " << doorAssign[i] << " ";
+	}
+}
+
 void initializeApplication(void)
 {
 	//	Allocate the grid
@@ -219,50 +291,211 @@ void initializeApplication(void)
 	message = new char*[MAX_NUM_MESSAGES];
 	for (int k=0; k<MAX_NUM_MESSAGES; k++)
 		message[k] = new char[MAX_LENGTH_MESSAGE+1];
-	
 
+
+	static std::uniform_int_distribution<int> randDoor(0, numDoors - 1);
 	std::vector<GridPosition> usedCoords;
+	
+	// Generate Robot and Boxes
 	for (int i = 0; i < numBoxes; i++) {
-		bool isDupeCoords = true;
-		int thisRow;
-		int thisCol;
-		while (isDupeCoords) {
-			thisRow = randEdgeRow();
-			thisCol = randEdgeCol();
-			for (int j = 0; j < usedCoords.size(); j++) {
-				if ((thisRow == usedCoords[j][0]) && (thisCol == usedCoords[j][1])) 
-				}
-			}
-		}
+		unsigned int thisRow = 0;
+		unsigned int thisCol = 0;
+
+		// Create RobotStart
+		getNewRowColEdge(thisRow, thisCol, &usedCoords);
+		GridPosition robotStart = {thisRow, thisCol};
+		usedCoords.push_back(robotStart);
+		robotLoc.push_back(robotStart);
+
+		// Create BoxStart
+		getNewRowColnonEdge(thisRow, thisCol, &usedCoords);
+		GridPosition boxStart = {thisRow, thisCol};
+		usedCoords.push_back(boxStart);
+		boxLoc.push_back(boxStart);
+
+		// Assign Door Number
+		doorAssign.push_back(randDoor(engine));
 	}
-	//---------------------------------------------------------------
-	//	This is the place where you should initialize the location
-	//	of the doors, boxes, and robots, and create threads (not
-	//	necessarily in that order).
-	//---------------------------------------------------------------
+
+	// Generate Doors
+	for (int i = 0; i < numDoors; i++) {
+		unsigned int thisRow = 0;
+		unsigned int thisCol = 0;
+
+		getNewRowColEdge(thisRow, thisCol, &usedCoords);
+		GridPosition thisDoor = {thisRow, thisCol};
+		usedCoords.push_back(thisDoor);
+		doorLoc.push_back(thisDoor);
+	}
+
+	writeStartingPositions();
+
+	// START ROBOT THREADS HERE
+
+	outFile.close();
+	
+	for (int k = 0; k < numBoxes; k++) {
+		robotThreadVec.push_back(std::thread (robotFunc, k));
+	}
 }
 
-// CHANGE THIS FOR THREAD STUFF
-//multithreaded robots
-void* robotFunc(void*)
-{
-	bool isAlive = true;
-	
-	//	do planning (generate list of robot commands (move/push)
-	
-	
-	while (isAlive)
-	{
-		//	execute one move
+void move(char direction, int index) {
+	switch (direction) {
+		case 'N':
+			robotLoc[index].row -= 1;
+			break;
+		case 'E':
+			robotLoc[index].col += 1;
+			break;
+		case 'S':
+			robotLoc[index].row += 1;
+			break;
+		case 'W':
+			robotLoc[index].col -= 1;
+			break;
+		default:
+			break;
+	}
+}
 
-//		usleep(ROBOT_SLEEP_TIME);
-//
-//		isAlive = still commands in list of commands
+void push(char direction, int index) {
+	switch (direction) {
+		case 'N':
+			robotLoc[index].row -= 1;
+			boxLoc[index].row -= 1;
+			break;
+		case 'E':
+			robotLoc[index].col += 1;
+			boxLoc[index].col += 1;
+			break;
+		case 'S':
+			robotLoc[index].row += 1;
+			boxLoc[index].row += 1;
+			break;
+		case 'W':
+			robotLoc[index].col -= 1;
+			boxLoc[index].col -= 1;
+			break;
+		default:
+			break;
+	}
+}
+
+void* robotFunc(int thisIndex)
+{	
+	// Getting directions from the box to the door
+	int boxToDoorRow = doorLoc[doorAssign[thisIndex]].row - boxLoc[thisIndex].row;
+	int boxToDoorCol = doorLoc[doorAssign[thisIndex]].col - boxLoc[thisIndex].col;
+	
+	// Getting the Position of the ideal spot to move the robot
+	GridPosition idealRobotStart;
+	if (boxToDoorCol > 0) {
+		idealRobotStart = {boxLoc[thisIndex].row, boxLoc[thisIndex].col - 1};
+	} else if (boxToDoorCol < 0) {
+		idealRobotStart = {boxLoc[thisIndex].row, boxLoc[thisIndex].col + 1};
+	} else {
+		if (boxToDoorRow > 0) {
+			idealRobotStart = {boxLoc[thisIndex].row - 1, boxLoc[thisIndex].col};
+		} else {
+			idealRobotStart = {boxLoc[thisIndex].row + 1, boxLoc[thisIndex].col};
+		}
+	}
+
+	// Getting directions from the robot to the ideal start point
+	int robotToStartRow = idealRobotStart.row - robotLoc[thisIndex].row;
+	int robotToStartCol = idealRobotStart.col - robotLoc[thisIndex].col;
+
+	std::vector<char> directions;
+	std::vector<char> instructions;
+
+	// Horizontal Movement to Box
+	while (robotToStartCol != 0) {
+		if (robotToStartCol > 0) {
+			directions.push_back('E');
+			robotToStartCol -= 1;
+		} else {
+			directions.push_back('W');
+			robotToStartCol += 1;
+		}
+		instructions.push_back('M');
+	}
+
+	// Vertical Movement to Box
+	while (robotToStartRow != 0) {
+		if (robotToStartRow > 0) {
+			directions.push_back('S');
+			robotToStartRow -= 1;
+		} else {
+			directions.push_back('N');
+			robotToStartRow += 1;
+		}
+		instructions.push_back('M');
+	}
+	
+	// Horizontal Push
+	while (boxToDoorCol != 0) {
+		if (boxToDoorCol > 0) {
+			directions.push_back('E');
+			boxToDoorCol -= 1;
+		} else {
+			directions.push_back('W');
+			boxToDoorCol += 1;
+		}
+		instructions.push_back('P');
+	}
+
+	// Position Readjusted
+	if (boxToDoorRow > 0) {
+		if (directions[directions.size()-1] == 'E') {
+			directions.push_back('S');
+			directions.push_back('E');
+		} else {
+			directions.push_back('S');
+			directions.push_back('W');
+		}
+	} else {
+		if (directions[directions.size()-1] == 'E') {
+			directions.push_back('N');
+			directions.push_back('E');
+		} else {
+			directions.push_back('N');
+			directions.push_back('W');
+		}
+	}
+	instructions.push_back('M');
+	instructions.push_back('M');
+
+	// Vertical Push
+	while (boxToDoorRow != 0) {
+		if (boxToDoorRow > 0) {
+			directions.push_back('S');
+			boxToDoorRow -= 1;
+		} else {
+			directions.push_back('N');
+			boxToDoorRow += 1;
+		}
+		instructions.push_back('P');
+	}
+
+	// Movement Loop
+	while (instructions.size())
+	{
+		if (instructions[0] == 'M') {
+			move(directions[0], thisIndex);
+			// File Write Command Here
+		} else {
+			push(directions[0], thisIndex);
+			// File Write Command Here
+		}
+		instructions.erase(instructions.begin());
+		directions.erase(directions.begin());
+
+		std::this_thread::sleep_for(std::chrono::microseconds(robotSleepTime));
 	}
 	
 	return nullptr;
 }
-
+// --------------------------------------------------------------------------------------------------------------
 
 //	Rather that writing a function that prints out only to the terminal
 //	and then
@@ -293,16 +526,16 @@ string printGrid(void)
 	//	I use sparse storage for my grid
 	map<int, map<int, string> > strGrid;
 	
-	//	addd doors
+	//	add doors
 	for (int k=0; k<numDoors; k++)
 	{
-		strGrid[doorLoc[k][0]][doorLoc[k][1]] = doorStr[k];
+		strGrid[doorLoc[k].row][doorLoc[k].col] = doorStr[k];
 	}
 	//	add boxes
 	for (int k=0; k<numBoxes; k++)
 	{
-		strGrid[boxLoc[k][0]][boxLoc[k][1]] = boxStr[k];
-		strGrid[robotLoc[k][0]][robotLoc[k][1]] = robotStr[k];
+		strGrid[boxLoc[k].row][boxLoc[k].col] = boxStr[k];
+		strGrid[robotLoc[k].row][robotLoc[k].col] = robotStr[k];
 	}
 	
 	ostringstream outStream;
