@@ -137,6 +137,7 @@ std::vector<GridPosition> doorLoc;
 std::vector<std::thread> robotThreadVec;
 std::vector<bool> RobotLiveVec;
 std::mutex fileMutex;
+std::mutex gridMutex;
 
 //	For extra credit section
 random_device randDev;
@@ -544,6 +545,114 @@ void VertPushToBox (std::vector<char>* directions, std::vector<char>* instructio
 	return;
 }
 
+// This function tests and sees if the robot can move to the next spot on the grid. This
+// function returns true if it can move and returns false if it can't
+bool robotCanMove(char curDirection, int robotIndex) {
+	unsigned int testCoord;
+	switch (curDirection) {
+		case 'N':
+			testCoord = robotLoc[robotIndex].row - 1;
+			for (int i = 0; i < numBoxes; i++) {
+				if ((robotLoc[i].row == testCoord) && (robotLoc[i].col == robotLoc[robotIndex].col)) {
+					return false;
+				}
+				if ((boxLoc[i].row == testCoord) && (boxLoc[i].col == robotLoc[robotIndex].col)) {
+					return false;
+				}
+			}
+			return true;
+		case 'E':
+			testCoord = robotLoc[robotIndex].col + 1;
+			for (int i = 0; i < numBoxes; i++) {
+				if ((robotLoc[i].row == robotLoc[robotIndex].row) && (robotLoc[i].col == testCoord)) {
+					return false;
+				}
+				if ((boxLoc[i].row == robotLoc[robotIndex].row) && (boxLoc[i].col == testCoord)) {
+					return false;
+				}
+			}
+			return true;
+		case 'S':
+			testCoord = robotLoc[robotIndex].row + 1;
+			for (int i = 0; i < numBoxes; i++) {
+				if ((robotLoc[i].row == testCoord) && (robotLoc[i].col == robotLoc[robotIndex].col)) {
+					return false;
+				}
+				if ((boxLoc[i].row == testCoord) && (boxLoc[i].col == robotLoc[robotIndex].col)) {
+					return false;
+				}
+			}
+			return true;
+		case 'W':
+			testCoord = robotLoc[robotIndex].col - 1;
+			for (int i = 0; i < numBoxes; i++) {
+				if ((robotLoc[i].row == robotLoc[robotIndex].row) && (robotLoc[i].col == testCoord)) {
+					return false;
+				}
+				if ((boxLoc[i].row == robotLoc[robotIndex].row) && (boxLoc[i].col == testCoord)) {
+					return false;
+				}
+			}
+			return true;
+		default:
+			return false;
+	}
+}
+
+// This function tests and sees if the box can be pushed to the next spot on the grid. This
+// function returns true if it can be pushed and returns false if it can't
+bool boxCanBePushed(char curDirection, int robotIndex) {
+	unsigned int testCoord;
+	switch (curDirection) {
+		case 'N':
+			testCoord = boxLoc[robotIndex].row - 1;
+			for (int i = 0; i < numBoxes; i++) {
+				if ((robotLoc[i].row == testCoord) && (robotLoc[i].col == boxLoc[robotIndex].col)) {
+					return false;
+				}
+				if ((boxLoc[i].row == testCoord) && (boxLoc[i].col == boxLoc[robotIndex].col)) {
+					return false;
+				}
+			}
+			return true;
+		case 'E':
+			testCoord = boxLoc[robotIndex].col + 1;
+			for (int i = 0; i < numBoxes; i++) {
+				if ((robotLoc[i].row == boxLoc[robotIndex].row) && (robotLoc[i].col == testCoord)) {
+					return false;
+				}
+				if ((boxLoc[i].row == boxLoc[robotIndex].row) && (boxLoc[i].col == testCoord)) {
+					return false;
+				}
+			}
+			return true;
+		case 'S':
+			testCoord = boxLoc[robotIndex].row + 1;
+			for (int i = 0; i < numBoxes; i++) {
+				if ((robotLoc[i].row == testCoord) && (robotLoc[i].col == boxLoc[robotIndex].col)) {
+					return false;
+				}
+				if ((boxLoc[i].row == testCoord) && (boxLoc[i].col == boxLoc[robotIndex].col)) {
+					return false;
+				}
+			}
+			return true;
+		case 'W':
+			testCoord = boxLoc[robotIndex].col - 1;
+			for (int i = 0; i < numBoxes; i++) {
+				if ((robotLoc[i].row == boxLoc[robotIndex].row) && (robotLoc[i].col == testCoord)) {
+					return false;
+				}
+				if ((boxLoc[i].row == boxLoc[robotIndex].row) && (boxLoc[i].col == testCoord)) {
+					return false;
+				}
+			}
+			return true;
+		default:
+			return false;
+	}
+}
+
 // Function to run each thread on
 void* robotFunc(int thisIndex)
 {	
@@ -583,22 +692,42 @@ void* robotFunc(int thisIndex)
 
 	// Movement Loop
 	while (RobotLiveVec[thisIndex]) {
+		bool instructionExecuted = false;
 		if (instructions[0] == 'M') {
-			move(directions[0], thisIndex);
-			fileMutex.lock();
-			outFile << "robot " << thisIndex << " move " <<  directions[0] << "\n";
-			fileMutex.unlock();
+			gridMutex.lock();
+			if (robotCanMove(directions[0], thisIndex)) {
+				move(directions[0], thisIndex);
+				fileMutex.lock();
+				outFile << "robot " << thisIndex << " move " <<  directions[0] << "\n";
+				fileMutex.unlock();
+				instructionExecuted = true;
+			}
+			gridMutex.unlock();
 		} else {
-			push(directions[0], thisIndex);
-			fileMutex.lock();
-			outFile << "robot " << thisIndex << " push " <<  directions[0] << "\n";
-			fileMutex.unlock();
+			gridMutex.lock();
+			if (boxCanBePushed(directions[0], thisIndex)) {
+				push(directions[0], thisIndex);
+				fileMutex.lock();
+				outFile << "robot " << thisIndex << " push " <<  directions[0] << "\n";
+				fileMutex.unlock();
+				instructionExecuted = true;
+			}
+			gridMutex.unlock();
 		}
-		instructions.erase(instructions.begin());
-		directions.erase(directions.begin());
+		
+		if (instructionExecuted) {
+			instructions.erase(instructions.begin());
+			directions.erase(directions.begin());
+		}
 
 		if (instructions.empty()) {
 			RobotLiveVec[thisIndex] = false;
+			gridMutex.lock();
+			robotLoc[thisIndex].row = -1;
+			robotLoc[thisIndex].col = -1;
+			boxLoc[thisIndex].row = -1;
+			boxLoc[thisIndex].col = -1;
+			gridMutex.unlock();
 		}
 
 		std::this_thread::sleep_for(std::chrono::microseconds(robotSleepTime));

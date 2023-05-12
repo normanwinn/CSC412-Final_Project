@@ -1,0 +1,77 @@
+15 16 3 4
+
+(9, 6) (12, 6) (13, 8)
+
+(4, 7) (13, 4) (9, 4) (10, 6)
+
+(4, 1) Door: 1 (5, 3) Door: 0 (2, 13) Door: 0 (1, 7) Door: 0
+
+robot 0 move S
+robot 1 move S
+robot 3 move W
+robot 2 move W
+robot 0 move E
+robot 1 move S
+robot 3 move W
+robot 2 move W
+robot 0 move E
+robot 1 move S
+robot 3 move S
+robot 2 move W
+robot 0 move E
+robot 1 move S
+robot 3 move S
+robot 2 move W
+robot 0 move E
+robot 1 move S
+robot 3 move S
+robot 2 move W
+robot 0 move E
+robot 1 move S
+robot 3 move S
+robot 2 move W
+robot 0 move E
+robot 3 move S
+robot 1 move S
+robot 2 move W
+robot 0 move E
+robot 3 move S
+robot 1 move S
+robot 2 move W
+robot 0 move N
+robot 3 move S
+robot 1 push E
+robot 2 move W
+robot 0 push W
+robot 3 move S
+robot 1 push E
+robot 2 move W
+robot 0 move N
+robot 3 move S
+robot 1 move S
+robot 2 move S
+robot 0 move W
+robot 3 move S
+robot 1 move E
+robot 2 move S
+robot 0 push S
+robot 3 move E
+robot 1 push N
+robot 2 move S
+robot 0 push S
+robot 3 push N
+robot 1 push N
+robot 2 move S
+robot 0 push S
+robot 1 push N
+robot 2 move S
+robot 0 push S
+robot 1 push N
+robot 2 move S
+robot 0 push S
+robot 2 move S
+robot 0 push S
+robot 2 push E
+robot 0 push S
+robot 2 push E
+robot 0 push S
