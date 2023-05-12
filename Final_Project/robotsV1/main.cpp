@@ -153,7 +153,7 @@ bernoulli_distribution headsOrTails(1.0);
 //=================================================================
 #endif
 
-void validateInput(int argc, char** argv) {
+void validateInputs(int argc, char** argv) {
 	if (argc != 5) {
 		printf("Incorrect number of command line arguments. Please enter './<exeName> <numRows> <numCols> <numBoxes> <numDoors'\n");
 		exit(1);
@@ -171,8 +171,8 @@ void validateInput(int argc, char** argv) {
 		exit(1);
 	}
 
-	numLiveThreads = atoi(argv[3]);
-	if (numLiveThreads <= 0) {
+	numBoxes = atoi(argv[3]);
+	if (numBoxes <= 0) {
 		printf("The number of boxes must be a strictly positive integer\n");
 		exit(1);
 	}
@@ -183,25 +183,18 @@ void validateInput(int argc, char** argv) {
 		exit(1);
 	}
 	
-	if (((numLiveThreads * 2) + numDoors) > (numRows * numCols)) {
+	if (((numBoxes * 2) + numDoors) > (numRows * numCols)) {
 		printf("The grid size is not large enough to run the simulation with the input door count and input box count\n");
 		exit(1);
 	}
 	return;
 }
 
+
 int main(int argc, char** argv)
 {
-	//	We know that the arguments  of the program  are going
-	//	to be the width (number of columns) and height (number of rows) of the
-	//	grid, the number of boxes (and robots), and the number of doors.
-	//	You are going to have to extract these.  For the time being,
-	//	I hard code-some values
-	numRows = 16;
-	numCols = 20;
-	numDoors = 3;
-	numBoxes = 3;
-	// validateInputs(argc, argv);
+	// DEFAULT VALUES: 16 20 3 3
+	validateInputs(argc, argv);
 	outFile << numRows << " " << numCols << " " << numDoors << " " << numBoxes << "\n\n";
 
 	//	Even though we extracted the relevant information from the argument
